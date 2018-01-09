@@ -1,3 +1,4 @@
+#include <OSCBoards copy.h>
 #include <OSCBoards.h>
 #include <OSCBundle.h>
 #include <OSCData.h>
@@ -14,9 +15,12 @@
 //////////////////////OSC用のインクルード/////////////////////
 
 //OSC用設定
-byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xF8, 0x91}; //シールドのアドレス Arduino2　横レール
+byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0x51, 0x1E}; //シールドのアドレス Arduino1 縦レール
+//byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xF8, 0x91}; //シールドのアドレス Arduino2　横レール
+//byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xF7, 0x4C}; //シールドのアドレス Arduino3　リレー
 
-IPAddress ip(192, 168, 11, 5);//環境に合わせて設定を Arduino1
+IPAddress ip(192, 168, 11, 6);//環境に合わせて設定を Arduino2
+
 IPAddress gateway(192, 168, 11, 5);   //環境に合わせて設定を
 IPAddress subnet(255, 255, 255, 0);    //環境に合わせて設定を
 unsigned int localPort = 8888;
@@ -27,15 +31,16 @@ EthernetServer server(23);
 
 //////////////////////////////////////////////////
 
+volatile int state1 = LOW;
+volatile int state2 = LOW;
+
 int PUL=7; //define Pulse pin
 int DIR=6; //define Direction pin
 int ENA=5; //define Enable Pin
-
-int speedval;
-
-
 void setup() {
 
+
+//エンドセンサー用
  pinMode(2,INPUT) ;    //スイッチに接続ピンをデジタル入力に設定
  pinMode(3,INPUT) ;    //スイッチに接続ピンをデジタル入力に設定
 
@@ -44,18 +49,16 @@ void setup() {
   Udp.begin(localPort);
   Serial.println(Ethernet.localIP());//IP取れてるか確認用
 
+  
   pinMode (PUL, OUTPUT);
   pinMode (DIR, OUTPUT);
   pinMode (ENA, OUTPUT);
 
 
-//スピード初期値
-  speedval =35;
 }
 
 
 void loop() {
-  
 EthernetClient client = server.available();
 
   OSCMessage msg;
@@ -76,29 +79,23 @@ EthernetClient client = server.available();
    if(!bndl.hasError())
         {
                //DO SOME WORK HERE-------------------
-
-             
-              bndl.route("/step", rail_position1);   
-              bndl.route("/speed1", set_speed);  ////C
-              bndl.route("/Calibration", Calibration);
-               
+               bndl.route("/step", rail_position1);
               
               //and echo it back
              if(bndl.size() > 0)
              {   
                        
-          
+           
              }
-        }     
+        }        
 }
-
 
 void rail_position1(OSCMessage &msg){
         int inValue = msg.getInt(0); 
         String DIR;
 
             OSCBundle bndlOUT;
-            bndlOUT.add("/from_rail1").add(inValue);
+            bndlOUT.add("/from_rail2").add(inValue);
             Udp.beginPacket(Udp.remoteIP(), destPort);
             bndlOUT.send(Udp);
             Udp.endPacket();
@@ -112,90 +109,48 @@ void rail_position1(OSCMessage &msg){
          inValue= inValue*-1;    
         }
         
-        front_step(inValue,speedval,DIR);
+        front_step(inValue,35,DIR);
+
 
          OSCBundle bndlOUT2;
-         bndlOUT2.add("/from_rail1_end").add(inValue);
+         bndlOUT2.add("/from_rail2_end").add(inValue);
          Udp.beginPacket(Udp.remoteIP(), destPort);
          bndlOUT2.send(Udp);
          Udp.endPacket();
-}
+        
 
-
-void set_speed(OSCMessage &msg){
-      int inValue = msg.getInt(0); 
-          speedval = inValue;
-
-          OSCBundle bndlOUT;
-            bndlOUT.add("/set_speed1").add(speedval);   ////C
-            Udp.beginPacket(Udp.remoteIP(), destPort);
-            bndlOUT.send(Udp);
-            Udp.endPacket(); 
-}
-
-void Calibration(OSCMessage &msg){
-        int inValue = msg.getInt(0); 
-             
-            OSCBundle bndlOUT;
-            bndlOUT.add("/Calibration").add(inValue);
-            Udp.beginPacket(Udp.remoteIP(), destPort);
-            bndlOUT.send(Udp);
-            Udp.endPacket();
-
-        if(inValue == 1 ){
-          
-             for (int i=0; i<30000; i++){
-
-              if (digitalRead(2) == LOW){  
-
-                OSCBundle bndlOUT;
-                bndlOUT.add("/Calibration_com").add(inValue);
-                Udp.beginPacket(Udp.remoteIP(), destPort);
-                bndlOUT.send(Udp);
-                Udp.endPacket();
-              
-              break;
-              }  
-             
-                front(90);          
-          }
+        //送り返す部分  
+            
   
-        }
-  }
-
-
-
+}
 
 //指定ステップ、指定したスピードで回転
 void front_step(int step, int Speed, String DIR){
  for (int i=0; i<step; i++)
   { 
 
-
-//エンドセンサー判定
-  if(DIR == "front"){
-  if (digitalRead(2) == LOW){  
+   if(DIR == "front"){
+if (digitalRead(2) == LOW) {     //スイッチの状態を調べる
     sensor1();
     break;
     }  
   }    
-
+  
   if(DIR == "back"){
-    if (digitalRead(3) == LOW){  
+   if (digitalRead(3) == LOW) {     //スイッチの状態を調べる
     sensor2();
     break;
     }  
-  }    
-
- //スピード決定
+  } 
+  
     int speed1 =Speed;
-    if (i < 500){
+    if (i < 1500){
       speed1 = 150-i/15;     
     }
-    if (step-i<500){
+    if (step-i<1500){
       speed1 = 150 - ((step-i)/15);
     }
-//回転指示
+
   if(DIR == "front"){
    front(speed1); 
     }
@@ -204,44 +159,49 @@ void front_step(int step, int Speed, String DIR){
     back(speed1); 
     }   
   } 
-
-  
 }
-
-////////////////////////////////////
-
 
 
 //前進する関数
 void front(int Speed){
-   for (int i=0; i<3; i++){
     digitalWrite(DIR,LOW);
     digitalWrite(ENA,HIGH);
     digitalWrite(PUL,HIGH);
     delayMicroseconds(Speed);
     digitalWrite(PUL,LOW);
     delayMicroseconds(Speed);
-   }
-   
 }
 
 //バックする関数
 void back(int Speed){
-  for (int i=0; i<3; i++){
     digitalWrite(DIR,HIGH);
     digitalWrite(ENA,HIGH);
     digitalWrite(PUL,HIGH);
     delayMicroseconds(Speed);
     digitalWrite(PUL,LOW);
     delayMicroseconds(Speed);
-     }
 }
+
+
+
+//コールバック
+
+void blink1() {
+    state1 = HIGH;
+}
+
+/*
+void blink2() {
+    state2 = HIGH;
+}
+*/
+
 
 
 //ぶつかったときにちょっと戻す関数
 void sensor1(){
 delay(500);
-for (int i=0; i<500; i++)   //Backward 5000 steps
+for (int i=0; i<1000; i++)   //Backward 5000 steps
   {
      
     digitalWrite(DIR,HIGH);
@@ -251,17 +211,11 @@ for (int i=0; i<500; i++)   //Backward 5000 steps
     digitalWrite(PUL,LOW);
     delayMicroseconds(100); 
   }
-                OSCBundle bndlOUT;
-                bndlOUT.add("/sensor1").add(1);
-                Udp.beginPacket(Udp.remoteIP(), destPort);
-                bndlOUT.send(Udp);
-                Udp.endPacket();
-  
 }
 
 void sensor2(){
 delay(500);
-for (int i=0; i<500; i++)   //Backward 5000 steps
+for (int i=0; i<1000; i++)   //Backward 5000 steps
   {
     
     digitalWrite(DIR,LOW);
@@ -271,13 +225,6 @@ for (int i=0; i<500; i++)   //Backward 5000 steps
     digitalWrite(PUL,LOW);
     delayMicroseconds(100); 
   }
-
-                OSCBundle bndlOUT;
-                bndlOUT.add("/sensor2").add(1);
-                Udp.beginPacket(Udp.remoteIP(), destPort);
-                bndlOUT.send(Udp);
-                Udp.endPacket();
-  
 }
 
 
