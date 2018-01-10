@@ -7,7 +7,6 @@
 #include <SLIPEncodedSerial.h>
 #include <SLIPEncodedUSBSerial.h>
 
-//git test////////////////
 #include <SPI.h>
 #include <Ethernet2.h>
 #include <EthernetUdp2.h>
@@ -33,9 +32,9 @@ int ENA=5; //define Enable Pin
 
 int speedval;
 
-
 void setup() {
-
+  
+//エンドセンサー用
  pinMode(2,INPUT) ;    //スイッチに接続ピンをデジタル入力に設定
  pinMode(3,INPUT) ;    //スイッチに接続ピンをデジタル入力に設定
 
@@ -50,7 +49,7 @@ void setup() {
 
 
 //スピード初期値
-  speedval =35;
+  speedval =70;
 }
 
 
@@ -147,6 +146,20 @@ void Calibration(OSCMessage &msg){
              for (int i=0; i<30000; i++){
 
               if (digitalRead(2) == LOW){  
+        
+                 delay(500);
+                  for (int i=0; i<500; i++)   //Backward 5000 steps
+                     {
+ 
+                       digitalWrite(DIR,HIGH);
+                       digitalWrite(ENA,HIGH);
+                       digitalWrite(PUL,HIGH);
+                       delayMicroseconds(100);
+                       digitalWrite(PUL,LOW);
+                       delayMicroseconds(100); 
+                     }
+
+                
 
                 OSCBundle bndlOUT;
                 bndlOUT.add("/Calibration_com").add(inValue);
@@ -208,9 +221,6 @@ void front_step(int step, int Speed, String DIR){
   
 }
 
-////////////////////////////////////
-
-
 
 //前進する関数
 void front(int Speed){
@@ -252,7 +262,7 @@ for (int i=0; i<500; i++)   //Backward 5000 steps
     delayMicroseconds(100); 
   }
                 OSCBundle bndlOUT;
-                bndlOUT.add("/sensor1").add(1);
+                bndlOUT.add("/sensor1_1").add(1);
                 Udp.beginPacket(Udp.remoteIP(), destPort);
                 bndlOUT.send(Udp);
                 Udp.endPacket();
@@ -273,7 +283,7 @@ for (int i=0; i<500; i++)   //Backward 5000 steps
   }
 
                 OSCBundle bndlOUT;
-                bndlOUT.add("/sensor2").add(1);
+                bndlOUT.add("/sensor1_1").add(1);
                 Udp.beginPacket(Udp.remoteIP(), destPort);
                 bndlOUT.send(Udp);
                 Udp.endPacket();

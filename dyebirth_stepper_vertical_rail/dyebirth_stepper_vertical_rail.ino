@@ -16,8 +16,6 @@
 
 //OSC用設定
 byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0x51, 0x1E}; //シールドのアドレス Arduino1 縦レール
-//byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xF8, 0x91}; //シールドのアドレス Arduino2　横レール
-//byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xF7, 0x4C}; //シールドのアドレス Arduino3　リレー
 
 IPAddress ip(192, 168, 11, 6);//環境に合わせて設定を Arduino2
 
@@ -31,14 +29,14 @@ EthernetServer server(23);
 
 //////////////////////////////////////////////////
 
-volatile int state1 = LOW;
-volatile int state2 = LOW;
-
 int PUL=7; //define Pulse pin
 int DIR=6; //define Direction pin
 int ENA=5; //define Enable Pin
-void setup() {
 
+
+int speedval;
+
+void setup() {
 
 //エンドセンサー用
  pinMode(2,INPUT) ;    //スイッチに接続ピンをデジタル入力に設定
@@ -54,6 +52,8 @@ void setup() {
   pinMode (DIR, OUTPUT);
   pinMode (ENA, OUTPUT);
 
+//スピード初期値
+  speedval =70;
 
 }
 
@@ -79,8 +79,10 @@ EthernetClient client = server.available();
    if(!bndl.hasError())
         {
                //DO SOME WORK HERE-------------------
-               bndl.route("/step", rail_position1);
-              
+              bndl.route("/step", rail_position1);   
+              bndl.route("/speed2", set_speed);  ////C
+              bndl.route("/Calibration", Calibration);
+               
               //and echo it back
              if(bndl.size() > 0)
              {   
@@ -109,7 +111,7 @@ void rail_position1(OSCMessage &msg){
          inValue= inValue*-1;    
         }
         
-        front_step(inValue,35,DIR);
+        front_step(inValue,speedval,DIR);
 
 
          OSCBundle bndlOUT2;
@@ -117,12 +119,62 @@ void rail_position1(OSCMessage &msg){
          Udp.beginPacket(Udp.remoteIP(), destPort);
          bndlOUT2.send(Udp);
          Udp.endPacket();
-        
 
-        //送り返す部分  
-            
-  
 }
+
+
+void set_speed(OSCMessage &msg){
+      int inValue = msg.getInt(0); 
+          speedval = inValue;
+
+          OSCBundle bndlOUT;
+            bndlOUT.add("/set_speed2").add(speedval);   ////C
+            Udp.beginPacket(Udp.remoteIP(), destPort);
+            bndlOUT.send(Udp);
+            Udp.endPacket(); 
+}
+
+void Calibration(OSCMessage &msg){
+        int inValue = msg.getInt(0); 
+             
+            OSCBundle bndlOUT;
+            bndlOUT.add("/Calibration").add(inValue);
+            Udp.beginPacket(Udp.remoteIP(), destPort);
+            bndlOUT.send(Udp);
+            Udp.endPacket();
+
+        if(inValue == 1 ){
+          
+             for (int i=0; i<30000; i++){
+
+              if (digitalRead(2) == LOW){  
+                delay(500);
+                for (int i=0; i<500; i++)   //Backward 5000 steps
+                 {
+     
+                     digitalWrite(DIR,HIGH);
+                     digitalWrite(ENA,HIGH);
+                     digitalWrite(PUL,HIGH);
+                     delayMicroseconds(100);
+                     digitalWrite(PUL,LOW);
+                     delayMicroseconds(100); 
+                   }
+                
+
+                OSCBundle bndlOUT;
+                bndlOUT.add("/Calibration_com").add(inValue);
+                Udp.beginPacket(Udp.remoteIP(), destPort);
+                bndlOUT.send(Udp);
+                Udp.endPacket();
+              
+              break;
+              }  
+             
+                front(90);          
+          }
+  
+        }
+  }
 
 //指定ステップ、指定したスピードで回転
 void front_step(int step, int Speed, String DIR){
@@ -164,44 +216,35 @@ if (digitalRead(2) == LOW) {     //スイッチの状態を調べる
 
 //前進する関数
 void front(int Speed){
+   for (int i=0; i<3; i++){
     digitalWrite(DIR,LOW);
     digitalWrite(ENA,HIGH);
     digitalWrite(PUL,HIGH);
     delayMicroseconds(Speed);
     digitalWrite(PUL,LOW);
     delayMicroseconds(Speed);
+   }
+   
 }
 
 //バックする関数
 void back(int Speed){
+  for (int i=0; i<3; i++){
     digitalWrite(DIR,HIGH);
     digitalWrite(ENA,HIGH);
     digitalWrite(PUL,HIGH);
     delayMicroseconds(Speed);
     digitalWrite(PUL,LOW);
     delayMicroseconds(Speed);
+     }
 }
-
-
-
-//コールバック
-
-void blink1() {
-    state1 = HIGH;
-}
-
-/*
-void blink2() {
-    state2 = HIGH;
-}
-*/
 
 
 
 //ぶつかったときにちょっと戻す関数
 void sensor1(){
 delay(500);
-for (int i=0; i<1000; i++)   //Backward 5000 steps
+for (int i=0; i<500; i++)   //Backward 5000 steps
   {
      
     digitalWrite(DIR,HIGH);
@@ -211,11 +254,17 @@ for (int i=0; i<1000; i++)   //Backward 5000 steps
     digitalWrite(PUL,LOW);
     delayMicroseconds(100); 
   }
+                OSCBundle bndlOUT;
+                bndlOUT.add("/sensor2_1").add(1);
+                Udp.beginPacket(Udp.remoteIP(), destPort);
+                bndlOUT.send(Udp);
+                Udp.endPacket();
+  
 }
 
 void sensor2(){
 delay(500);
-for (int i=0; i<1000; i++)   //Backward 5000 steps
+for (int i=0; i<500; i++)   //Backward 5000 steps
   {
     
     digitalWrite(DIR,LOW);
@@ -225,6 +274,13 @@ for (int i=0; i<1000; i++)   //Backward 5000 steps
     digitalWrite(PUL,LOW);
     delayMicroseconds(100); 
   }
+
+                OSCBundle bndlOUT;
+                bndlOUT.add("/sensor2_2").add(1);
+                Udp.beginPacket(Udp.remoteIP(), destPort);
+                bndlOUT.send(Udp);
+                Udp.endPacket();
+  
 }
 
 
