@@ -147,12 +147,12 @@ void Calibration(OSCMessage &msg){
           
              for (int i=0; i<30000; i++){
 
-              if (digitalRead(2) == LOW){  
+              if (digitalRead(3) == LOW){  
                 delay(500);
-                for (int i=0; i<500; i++)   //Backward 5000 steps
+                for (int i=0; i<1000; i++)   //Backward 5000 steps
                  {
      
-                     digitalWrite(DIR,HIGH);
+                     digitalWrite(DIR,LOW);
                      digitalWrite(ENA,HIGH);
                      digitalWrite(PUL,HIGH);
                      delayMicroseconds(100);
@@ -170,7 +170,7 @@ void Calibration(OSCMessage &msg){
               break;
               }  
              
-                front(90);          
+                back(90);          
           }
   
         }
