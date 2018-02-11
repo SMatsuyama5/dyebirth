@@ -244,7 +244,7 @@ void back(int Speed){
 //ぶつかったときにちょっと戻す関数
 void sensor1(){
 delay(500);
-for (int i=0; i<500; i++)   //Backward 5000 steps
+for (int i=0; i<1000; i++)   //Backward 5000 steps
   {
      
     digitalWrite(DIR,HIGH);
@@ -264,7 +264,7 @@ for (int i=0; i<500; i++)   //Backward 5000 steps
 
 void sensor2(){
 delay(500);
-for (int i=0; i<500; i++)   //Backward 5000 steps
+for (int i=0; i<1000; i++)   //Backward 5000 steps
   {
     
     digitalWrite(DIR,LOW);
